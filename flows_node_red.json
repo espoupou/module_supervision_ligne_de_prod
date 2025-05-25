@@ -1,0 +1,45 @@
+[
+    {
+        "id": "c023e0647565f61c",
+        "type": "mqtt in",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "init",
+        "topic": "processus/reset",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "5f91f8f6e2f7bc1d",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 110,
+        "y": 400,
+        "wires": [
+            [
+                "41ccbdc67c78571d"
+            ]
+        ]
+    },
+    {
+        "id": "5f91f8f6e2f7bc1d",
+        "type": "mqtt-broker",
+        "name": "Mosquitto",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "nodered-client",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    }
+]
