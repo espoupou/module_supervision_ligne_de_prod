@@ -3,8 +3,8 @@
 #include <NewPing.h>
 
 // WiFi
-const char* ssid = "synux006";
-const char* password = "88888888";
+const char* ssid = "devipro";
+const char* password = "devipro";
 
 // MQTT
 const char* mqtt_server = "192.168.27.172";
