@@ -1,5 +1,549 @@
 [
     {
+        "id": "f1c389a7cf1d1c7f",
+        "type": "tab",
+        "label": "Flow Compteur",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "a2c02c787dd9b5b5",
+        "type": "mqtt in",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "produit_fini",
+        "topic": "produit/compte",
+        "qos": "0",
+        "datatype": "auto",
+        "broker": "5f91f8f6e2f7bc1d",
+        "nl": false,
+        "rap": false,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "0924b61213f3ea24"
+            ]
+        ]
+    },
+    {
+        "id": "d8f09e3095f77e61",
+        "type": "mqtt in",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "niveau",
+        "topic": "produit/niveau",
+        "qos": "0",
+        "datatype": "auto",
+        "broker": "5f91f8f6e2f7bc1d",
+        "nl": false,
+        "rap": false,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 160,
+        "wires": [
+            [
+                "333ee2f0d597df43"
+            ]
+        ]
+    },
+    {
+        "id": "b71bfc7dfac79f1e",
+        "type": "ui_gauge",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "niveau_gauge",
+        "group": "76138ee56118c785",
+        "order": 1,
+        "width": 7,
+        "height": 3,
+        "gtype": "wave",
+        "title": "Niveau du bac",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1180,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "0924b61213f3ea24",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set_produit_fini",
+        "func": "if (typeof global.get(\"produits_finis\") === \"undefined\") {\n    global.set(\"produits_finis\", 0);\n}\nif (typeof global.get(\"prod_out\") === \"undefined\") {\n    global.set(\"prod_out\", Date.now());\n}\n\nlet count = global.get(\"produits_finis\") + 1;\nglobal.set(\"produits_finis\", count);\n\nmsg.count = count;\nmsg.payload = count;\nmsg.takt = (Date.now() - global.get(\"prod_out\")) / 1000;\nmsg.out = global.get(\"prod_out\");\n\nlet prod_actuelle = global.get(\"produits_finis\") || 0;\nlet objectif = global.get(\"objectif_production\") || 1;\nmsg.objprod = (Math.min((prod_actuelle / objectif) * 100, 100)).toFixed(2);\n\nglobal.set(\"prod_out\", Date.now());\n\nmsg.shift = global.get(\"shift\");\nlet date = new Date().toISOString().slice(0, 19).replace('T', ' ');\nmsg.topic = `INSERT INTO production_events (timestamp, shift_id, produit_ok, raison_defaut, qr_code)\n            VALUES ('${date}', '${msg.shift}', 1, NULL, 'QR12345');`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 100,
+        "wires": [
+            [
+                "7f2bdff4d364e173",
+                "d9e5bec8fd2c131f",
+                "8b4d3f78c2bd8a39",
+                "1b7c5a891bd10769",
+                "080f889f554d8991"
+            ]
+        ]
+    },
+    {
+        "id": "cd176548379fb51d",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "fonction_indicateur",
+        "func": "if (typeof global.get(\"takt\") === \"undefined\") {\n    global.set(\"takt\", 30);\n}\n\nlet now = Date.now();\nlet takt = global.get(\"takt\");\nlet rebut = global.get(\"rebuts\");\nlet start_time = global.get(\"start_time\");\nlet temps_offs = global.get(\"temps_offs\") || 0;\nlet quantite_totale = global.get(\"produits_finis\");\nlet en_pause_depuis = global.get(\"temps_off\") || 0;\n\nif (en_pause_depuis !== 0) {\n    temps_offs += Date.now() - en_pause_depuis;\n}\n\nlet TD = (now - start_time - temps_offs) / (now - start_time);\nlet TP = (quantite_totale * takt) / ((now - start_time - temps_offs) / 1000);\nlet TQ = (quantite_totale - rebut) / quantite_totale;\n\nTD = (TD == null || isNaN(TD)) ? 0 : TD;\nTP = (TP == null || isNaN(TP)) ? 0 : TP;\nTQ = (TQ == null || isNaN(TQ)) ? 0 : TQ;\n\nTD = (TD > 1) ? 1 : ((TD < 0) ? 0 :TD);\nTP = (TP > 1) ? 1 : ((TP < 0) ? 0 :TP);\nTQ = (TQ > 1) ? 1 : ((TQ < 0) ? 0 :TQ);\n\nlet TRS = TP * TQ * TD;\n\nmsg.payload = {\n    TP: +(TP * 100).toFixed(2),\n    TQ: +(TQ * 100).toFixed(2),\n    TD: +(TD * 100).toFixed(2),\n    TRS: +(TRS * 100).toFixed(2)\n};\nmsg.topic = \"TRS\";\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 340,
+        "wires": [
+            [
+                "05af5e7e77fe3894",
+                "cf6f13ac081acd3d",
+                "4fbbe63a88ec456d",
+                "fa2dc363c0b6ec7d",
+                "416020a37a6f3106",
+                "ffc272e27a4f7d7c"
+            ]
+        ]
+    },
+    {
+        "id": "70eb795859ab705f",
+        "type": "ui_gauge",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TD",
+        "group": "77c37790eb995e95",
+        "order": 1,
+        "width": 5,
+        "height": 3,
+        "gtype": "gage",
+        "title": "TD",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#e69100",
+            "#006402"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1150,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "9538c2de8858dc22",
+        "type": "ui_gauge",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TP",
+        "group": "77c37790eb995e95",
+        "order": 2,
+        "width": 5,
+        "height": 3,
+        "gtype": "gage",
+        "title": "TP",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#e69100",
+            "#006402"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1150,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "d505e8210b010c57",
+        "type": "ui_gauge",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TQ",
+        "group": "77c37790eb995e95",
+        "order": 3,
+        "width": 5,
+        "height": 3,
+        "gtype": "gage",
+        "title": "TQ",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#e69100",
+            "#006402"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1150,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "2c60a015aeaf1c06",
+        "type": "mqtt in",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "rebut",
+        "topic": "produit/rebut",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "5f91f8f6e2f7bc1d",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 360,
+        "wires": [
+            [
+                "fe2618bbf6fb6bc6"
+            ]
+        ]
+    },
+    {
+        "id": "caeee16e13f7aa0c",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "d3800220c808702f",
+        "order": 2,
+        "width": 8,
+        "height": 1,
+        "name": "rebut",
+        "label": "Non qualité",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1150,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "fe2618bbf6fb6bc6",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "compter_rebut",
+        "func": "if (typeof global.get(\"produits_finis\") === \"undefined\") {\n    global.set(\"produits_finis\", 0);\n}\nif (typeof global.get(\"rebuts\") === \"undefined\") {\n    global.set(\"rebuts\", 0);\n}\n\nlet count = global.get(\"produits_finis\") + 1;\nglobal.set(\"produits_finis\", count);\nlet rebuts = global.get(\"rebuts\") + 1;\nglobal.set(\"rebuts\", rebuts);\n\nmsg.topic = \"takt\";\nmsg.payload = rebuts;\nmsg.rebuts = rebuts;\nmsg.takt = (Date.now() - global.get(\"prod_out\")) / 1000;\nmsg.out = global.get(\"prod_out\");\nglobal.set(\"prod_out\", Date.now());\n\nmsg.shift = global.get(\"shift\");\nlet date = new Date().toISOString().slice(0, 19).replace('T', ' ');\nmsg.topic = `INSERT INTO production_events (timestamp, shift_id, produit_ok, raison_defaut, qr_code)\n            VALUES ('${date}', '${msg.shift}', 0, NULL, 'QR12345');`\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 420,
+        "wires": [
+            [
+                "40498b038125d6fa",
+                "8b4d3f78c2bd8a39",
+                "caeee16e13f7aa0c",
+                "2dbe88302d3c2d80"
+            ]
+        ]
+    },
+    {
+        "id": "5db04488578150f9",
+        "type": "ui_chart",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TRS",
+        "group": "77c37790eb995e95",
+        "order": 4,
+        "width": 15,
+        "height": 9,
+        "label": "TRS",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "No data available",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": "5",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#10c625",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 1150,
+        "y": 620,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7f2bdff4d364e173",
+        "type": "mqtt out",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "produits_finis",
+        "topic": "produit/produits_finis",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "5f91f8f6e2f7bc1d",
+        "x": 550,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "40498b038125d6fa",
+        "type": "mqtt out",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "rebuts",
+        "topic": "produit/rebuts",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "5f91f8f6e2f7bc1d",
+        "x": 570,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "9c4425e41796c05d",
+        "type": "mqtt in",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "temps_off",
+        "topic": "machine/temps_off",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "5f91f8f6e2f7bc1d",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 440,
+        "wires": [
+            [
+                "0a1c74a33e2d3e7f"
+            ]
+        ]
+    },
+    {
+        "id": "05af5e7e77fe3894",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TP",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.TP",
+                "tot": "msg",
+                "dc": true
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 340,
+        "wires": [
+            [
+                "9538c2de8858dc22"
+            ]
+        ]
+    },
+    {
+        "id": "cf6f13ac081acd3d",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TQ",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.TQ",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 380,
+        "wires": [
+            [
+                "d505e8210b010c57"
+            ]
+        ]
+    },
+    {
+        "id": "4fbbe63a88ec456d",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TRS",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.TRS",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 420,
+        "wires": [
+            [
+                "5db04488578150f9"
+            ]
+        ]
+    },
+    {
+        "id": "333ee2f0d597df43",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set_niveau",
+        "func": "let nouveau_niveau = Number(msg.payload);\n\nglobal.set(\"niveau\", nouveau_niveau);\n\nmsg.payload = nouveau_niveau;\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 180,
+        "wires": [
+            [
+                "b71bfc7dfac79f1e"
+            ]
+        ]
+    },
+    {
+        "id": "fa2dc363c0b6ec7d",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "TD",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.TD",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 300,
+        "wires": [
+            [
+                "70eb795859ab705f"
+            ]
+        ]
+    },
+    {
+        "id": "0a1c74a33e2d3e7f",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set_temps_off",
+        "func": "if (typeof global.get(\"temps_offs\") === \"undefined\") {\n    global.set(\"temps_offs\", 0);\n}\nif (typeof global.get(\"temps_off\") === \"undefined\") {\n    global.set(\"temps_off\", 0);\n}\n\n\nlet etat = Number(msg.payload);\n\nif (etat === 1) {\n    if (global.get(\"temps_off\") === 0) {\n        global.set(\"temps_off\", Date.now());\n    }\n} else {\n    let start_off = global.get(\"temps_off\");\n    if (start_off !== 0) {\n        let total = global.get(\"temps_offs\");\n        let ecart = Date.now() - start_off;\n        global.set(\"temps_offs\", total + ecart);\n        global.set(\"temps_off\", 0);\n        global.set(\"prod_out\", Date.now());\n        msg.topic = `UPDATE shift_stat SET temps_hs = ${total + ecart}\n            WHERE id = ${global.get(\"shift\")};`;\n        msg.route = 0;\n    }\n}\n\nmsg.payload = global.get(\"temps_offs\");\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 340,
+        "y": 460,
+        "wires": [
+            [
+                "7b0dcf8c8f28db43",
+                "4017c3fc1781e1fa"
+            ]
+        ]
+    },
+    {
+        "id": "7b0dcf8c8f28db43",
+        "type": "mqtt out",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "temps non dispo",
+        "topic": "machine/temps_offs",
+        "qos": "0",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "5f91f8f6e2f7bc1d",
+        "x": 560,
+        "y": 480,
+        "wires": []
+    },
+    {
         "id": "c023e0647565f61c",
         "type": "mqtt in",
         "z": "f1c389a7cf1d1c7f",
@@ -12,12 +556,895 @@
         "rap": true,
         "rh": 0,
         "inputs": 0,
-        "x": 110,
-        "y": 400,
+        "x": 130,
+        "y": 600,
         "wires": [
             [
                 "41ccbdc67c78571d"
             ]
+        ]
+    },
+    {
+        "id": "d9e5bec8fd2c131f",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "d3800220c808702f",
+        "order": 1,
+        "width": 8,
+        "height": 1,
+        "name": "produits_finis",
+        "label": "produits finis",
+        "format": "{{msg.count}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1170,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "28bda9f2e28a958c",
+        "type": "ui_button",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "",
+        "group": "d3800220c808702f",
+        "order": 5,
+        "width": 8,
+        "height": 1,
+        "passthru": false,
+        "label": "reset",
+        "tooltip": "",
+        "color": "white",
+        "bgcolor": "red",
+        "className": "",
+        "icon": "",
+        "payload": "",
+        "payloadType": "str",
+        "topic": "topic",
+        "topicType": "msg",
+        "x": 130,
+        "y": 520,
+        "wires": [
+            [
+                "41ccbdc67c78571d"
+            ]
+        ]
+    },
+    {
+        "id": "41ccbdc67c78571d",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "reset_context",
+        "func": "global.set(\"produits_finis\", 0);\nglobal.set(\"niveau\", 100);\nglobal.set(\"rebuts\", 0);\nglobal.set(\"temps_offs\", 0);\nglobal.set(\"temps_total\", 28800);\nglobal.set(\"prod_out\", Date.now());\nglobal.set(\"start_time\", Date.now());\nglobal.set(\"objectif_production\", 500);\n\nmsg.payload = {\n    zero: 0,\n    cent: 100\n}\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 400,
+        "y": 660,
+        "wires": [
+            [
+                "61b20cce62e12e1d",
+                "dfa0e5ce35a744e3"
+            ]
+        ]
+    },
+    {
+        "id": "61b20cce62e12e1d",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set_0",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.zero",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 460,
+        "wires": [
+            [
+                "caeee16e13f7aa0c",
+                "d9e5bec8fd2c131f"
+            ]
+        ]
+    },
+    {
+        "id": "dfa0e5ce35a744e3",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set_100",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload.cent",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 860,
+        "y": 660,
+        "wires": [
+            [
+                "b71bfc7dfac79f1e"
+            ]
+        ]
+    },
+    {
+        "id": "3153f9b3484ee02a",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "Reset SHIFT",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "00 08 * * *",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "object",
+        "payloadType": "date",
+        "x": 140,
+        "y": 680,
+        "wires": [
+            [
+                "41ccbdc67c78571d",
+                "b2643a962e5fd0cc"
+            ]
+        ]
+    },
+    {
+        "id": "e70c4258b9f8ba98",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "4be6bc72d7a27a35",
+        "order": 1,
+        "width": 15,
+        "height": 1,
+        "name": "today",
+        "label": "",
+        "format": "{{msg.payload.today}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1150,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "181330651ea6b9a6",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "clock sec",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "0",
+        "payloadType": "num",
+        "x": 150,
+        "y": 220,
+        "wires": [
+            [
+                "cd176548379fb51d",
+                "a5f4ec0e99c9a72a"
+            ]
+        ]
+    },
+    {
+        "id": "a5f4ec0e99c9a72a",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "time fomat",
+        "func": "let now = new Date();\nlet start_time = global.get(\"start_time\");\nlet temps_offs = global.get(\"temps_offs\") || 0;\nlet en_pause_depuis = global.get(\"temps_off\") || 0;\n\nconst jours = [\"dimanche\", \"lundi\", \"mardi\", \"mercredi\", \"jeudi\", \"vendredi\", \"samedi\"];\nconst mois = [\"janvier\", \"février\", \"mars\", \"avril\", \"mai\", \"juin\",\n              \"juillet\", \"août\", \"septembre\", \"octobre\", \"novembre\", \"décembre\"];\n\n//date et heure\nlet jourSemaine = jours[now.getDay()];\nlet jour = String(now.getDate()).padStart(2, '0');\nlet moisNom = mois[now.getMonth()];\nlet annee = now.getFullYear();\n\nlet heures = String(now.getHours()).padStart(2, '0');\nlet minutes = String(now.getMinutes()).padStart(2, '0');\nlet secondes = String(now.getSeconds()).padStart(2, '0');\n\nlet date_format = `${jourSemaine} ${jour} ${moisNom} ${annee}, ${heures}:${minutes}:${secondes}`;\n\n// Durée depuis lancement\nlet duree = Date.now() - start_time\nlet durationSec = Math.floor(duree / 1000);\n\nlet h = String(Math.floor(durationSec / 3600)).padStart(2, '0');\nlet m = String(Math.floor((durationSec % 3600) / 60)).padStart(2, '0');\nlet s = String(durationSec % 60).padStart(2, '0');\n\nlet duree_format = `${h}:${m}:${s}`;\n\n// temps Hors service\n\nif (en_pause_depuis !== 0) {\n    temps_offs += Date.now() - en_pause_depuis;\n}\n\nlet ht = String(Math.floor(temps_offs / 3600000)).padStart(2, '0');\nlet mt = String(Math.floor((temps_offs % 3600000) / 60000)).padStart(2, '0');\nlet st = String(Math.floor((temps_offs % 60000) / 1000)).padStart(2, '0');\n\nlet temps_off_format = `${ht}:${mt}:${st}`;\n\nmsg.payload = {\n    today: date_format,\n    duration: duree_format,\n    temps_offs: temps_off_format\n};\nreturn msg;\n",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 330,
+        "y": 220,
+        "wires": [
+            [
+                "82c08f95056231f7"
+            ]
+        ]
+    },
+    {
+        "id": "416020a37a6f3106",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "alerte perforance",
+        "func": "if (typeof global.get(\"seuil\") === \"undefined\") {\n    global.set(\"seuil\", 75);\n}\n\nif (msg.payload.TQ < global.get(\"seuil\")) {\n    msg.alerte = \"TQ\";\n    //msg.seuil = msg.payload.TQ;\n    msg.out = `⚠️ Qualité en baisse TQ = ${msg.payload.TQ}%`;\n} else if (msg.payload.TRS < global.get(\"seuil\")) {\n    msg.alerte = \"TRS\";\n    //msg.seuil = msg.payload.TRS;\n    msg.out = `⚠️ Performance critique TRS = ${msg.payload.TRS}%`;\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 380,
+        "wires": [
+            [
+                "128af3a27d6dcc64"
+            ]
+        ]
+    },
+    {
+        "id": "128af3a27d6dcc64",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "03e4285cb4d6a5b9",
+        "order": 1,
+        "width": 7,
+        "height": 1,
+        "name": "",
+        "label": "",
+        "format": "{{msg.out}}",
+        "layout": "row-left",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1150,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "ffc272e27a4f7d7c",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "format indicateur",
+        "func": "let data = context.get(\"data\") || [];\n\nif (msg.timeout === 1) {\n    if (data.length === 0) {\n        msg.timeout = 0;\n        return msg;\n    }\n    let sum = data.reduce((acc, val) => {\n        acc.TRS += val.TRS;\n        acc.TQ += val.TQ;\n        acc.TD += val.TD;\n        acc.TP += val.TP;\n        return acc;\n    }, { TRS: 0, TQ: 0, TD: 0, TP: 0 });\n\n    let count = data.length;\n\n    let avg = {\n        TRS: sum.TRS / count,\n        TQ: sum.TQ / count,\n        TD: sum.TD / count,\n        TP: sum.TP / count\n    };\n\n    context.set(\"data\", []);\n    msg.payload = [\n        new Date().toISOString().slice(0, 19).replace('T', ' '),\n        \"LIGNE_1\",\n        avg.TRS,\n        avg.TQ,\n        avg.TD,\n        avg.TP\n    ];\n    msg.topic = `INSERT INTO indicateurs (timestamp, ligne_id, TRS, TQ, TD, TP) VALUES (?, ?, ?, ?, ?, ?)`;\n    return msg;\n} else {\n    data.push({\n        TRS: msg.payload.TRS,\n        TQ: msg.payload.TQ,\n        TD: msg.payload.TD,\n        TP: msg.payload.TP\n    });\n\n    context.set(\"data\", data);\n}\nmsg.timeout = 0;\nmsg.topic = '';\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 370,
+        "y": 280,
+        "wires": [
+            [
+                "661c242a75b00c82"
+            ]
+        ]
+    },
+    {
+        "id": "11b422afde264533",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "table_indicateur",
+        "x": 1180,
+        "y": 440,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "cf45a3ed3c2bf2d2",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "clock 5min",
+        "props": [
+            {
+                "p": "timeout",
+                "v": "1",
+                "vt": "num"
+            }
+        ],
+        "repeat": "300",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "x": 150,
+        "y": 300,
+        "wires": [
+            [
+                "ffc272e27a4f7d7c"
+            ]
+        ]
+    },
+    {
+        "id": "661c242a75b00c82",
+        "type": "switch",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "timeout",
+        "property": "timeout",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "1",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 860,
+        "y": 260,
+        "wires": [
+            [
+                "11b422afde264533"
+            ]
+        ]
+    },
+    {
+        "id": "82c08f95056231f7",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "rien",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "payload",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 220,
+        "wires": [
+            [
+                "e70c4258b9f8ba98",
+                "7b8d4771f30e9fa9",
+                "5b1b3a4c4bfbd6f6"
+            ]
+        ]
+    },
+    {
+        "id": "10bb74a48e56df8a",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "startUp",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 140,
+        "y": 20,
+        "wires": [
+            [
+                "f7c02e5238f9657b"
+            ]
+        ]
+    },
+    {
+        "id": "f7c02e5238f9657b",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "startUp",
+        "func": "global.set(\"niveau\", 0);\nglobal.set(\"rebuts\", 0);\nglobal.set(\"temps_off\", 0);\nglobal.set(\"temps_offs\", 0);\nglobal.set(\"produits_finis\", 0);\nglobal.set(\"prod_out\", Date.now());\nglobal.set(\"start_time\", Date.now());\nglobal.set(\"objectif_production\", 500);\n\nlet date = new Date().toISOString().slice(0, 19).replace('T', ' ');\nlet hour = new Date().getHours();\nlet shift = (hour >= 8 && hour < 16) ? \"MATIN\"\n         : (hour >= 16) ? \"SOIR\"\n         : \"NUIT\";\n\nmsg.topic = `SELECT * FROM shift_stat WHERE\nshift = '${shift}' AND ligne_id = 'LIGNE_1';`;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 20,
+        "wires": [
+            [
+                "df419727dbac46e1"
+            ]
+        ]
+    },
+    {
+        "id": "7b8d4771f30e9fa9",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "4be6bc72d7a27a35",
+        "order": 2,
+        "width": 15,
+        "height": 1,
+        "name": "",
+        "label": "système démaré depuis",
+        "format": "{{msg.payload.duration}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1210,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "5b1b3a4c4bfbd6f6",
+        "type": "ui_text",
+        "z": "f1c389a7cf1d1c7f",
+        "group": "d3800220c808702f",
+        "order": 3,
+        "width": 8,
+        "height": 1,
+        "name": "",
+        "label": "Temps total HS",
+        "format": "{{msg.payload.temps_offs}}",
+        "layout": "row-spread",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1180,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "8b4d3f78c2bd8a39",
+        "type": "change",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "takt",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "takt",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "topic",
+                "pt": "msg",
+                "to": "\"takt\"",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 850,
+        "y": 160,
+        "wires": [
+            [
+                "5166fab5914fae56"
+            ]
+        ]
+    },
+    {
+        "id": "5166fab5914fae56",
+        "type": "ui_chart",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "",
+        "group": "d3800220c808702f",
+        "order": 4,
+        "width": 8,
+        "height": 5,
+        "label": "takt time",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "50",
+        "removeOlder": "5",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "60",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 1160,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "1b7c5a891bd10769",
+        "type": "ui_gauge",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "Objectif prod",
+        "group": "76138ee56118c785",
+        "order": 2,
+        "width": 7,
+        "height": 4,
+        "gtype": "donut",
+        "title": "Objectif de production",
+        "label": "%",
+        "format": "{{msg.objprod}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#b30000",
+            "#e66700",
+            "#00b500"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1170,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "df419727dbac46e1",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 490,
+        "y": 20,
+        "wires": [
+            [
+                "a35e3bcc9cb03d37"
+            ]
+        ]
+    },
+    {
+        "id": "a35e3bcc9cb03d37",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "shift insert func",
+        "func": "let hour = new Date().getHours();\nlet shift = (hour >= 8 && hour < 16) ? \"MATIN\"\n    : (hour >= 16) ? \"SOIR\"\n        : \"NUIT\";\n\nif (msg.payload.length === 0) {\n     msg.payload = [\n        new Date().toISOString().slice(0, 19).replace('T', ' '),\n        shift,\n        \"LIGNE_1\"\n    ];\n    msg.topic = `INSERT INTO shift_stat(date, shift, ligne_id)\n                VALUES(?, ?, ?);`;\n    msg.route = 0;\n} else {\n    msg.route = 1;\n    global.set(\"shift\", msg.payload[0].id);\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 20,
+        "wires": [
+            [
+                "b6ad3f07f4202377"
+            ]
+        ]
+    },
+    {
+        "id": "b6ad3f07f4202377",
+        "type": "switch",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "create?",
+        "property": "route",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "0",
+                "vt": "num"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 860,
+        "y": 20,
+        "wires": [
+            [
+                "3ac871c55141e58b"
+            ]
+        ]
+    },
+    {
+        "id": "3ac871c55141e58b",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 1010,
+        "y": 20,
+        "wires": [
+            [
+                "59f3b9ef988cd2d7"
+            ]
+        ]
+    },
+    {
+        "id": "080f889f554d8991",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 690,
+        "y": 80,
+        "wires": [
+            [
+                "0f32e247db937489"
+            ]
+        ]
+    },
+    {
+        "id": "0f32e247db937489",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "function 1",
+        "func": "msg.topic = `UPDATE shift_stat SET prod = ${msg.count}\n            WHERE id = ${msg.shift};`;\nnode.warn(msg.topic);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 860,
+        "y": 80,
+        "wires": [
+            [
+                "035f58bae7f573f8"
+            ]
+        ]
+    },
+    {
+        "id": "035f58bae7f573f8",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 1010,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "59f3b9ef988cd2d7",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "set shift",
+        "func": "global.set(\"shift\", msg.payload.id);\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1210,
+        "y": 20,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "2dbe88302d3c2d80",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 690,
+        "y": 440,
+        "wires": [
+            [
+                "e0aee148f56a8962"
+            ]
+        ]
+    },
+    {
+        "id": "e0aee148f56a8962",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "function 3",
+        "func": "msg.topic = `UPDATE shift_stat SET defauts = ${msg.rebuts}\n            WHERE id = ${msg.shift};`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 860,
+        "y": 500,
+        "wires": [
+            [
+                "7b98fba2c6538db8"
+            ]
+        ]
+    },
+    {
+        "id": "7b98fba2c6538db8",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 890,
+        "y": 540,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5dbf49c3de192d1a",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 690,
+        "y": 600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "4017c3fc1781e1fa",
+        "type": "switch",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "",
+        "property": "route",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "0",
+                "vt": "num"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 530,
+        "y": 580,
+        "wires": [
+            [
+                "5dbf49c3de192d1a"
+            ]
+        ]
+    },
+    {
+        "id": "b2643a962e5fd0cc",
+        "type": "function",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "function 2",
+        "func": "let hour = new Date().getHours();\nlet shift = (hour >= 8 && hour < 16) ? \"MATIN\"\n    : (hour >= 16) ? \"SOIR\"\n        : \"NUIT\";\n\nmsg.payload = [\n    new Date().toISOString().slice(0, 19).replace('T', ' '),\n    shift,\n    \"LIGNE_1\"\n];\nmsg.topic = `INSERT INTO shift_stat(date, shift, ligne_id)\n        VALUES(?, ?, ?);`;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 700,
+        "wires": [
+            [
+                "0ba3ebe7d1e3d84d"
+            ]
+        ]
+    },
+    {
+        "id": "d05de26ed02d8610",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "Reset SHIFT",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "00 16 * * *",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "object",
+        "payloadType": "date",
+        "x": 140,
+        "y": 680,
+        "wires": [
+            [
+                "41ccbdc67c78571d",
+                "b2643a962e5fd0cc"
+            ]
+        ]
+    },
+    {
+        "id": "9e827c72527d7ecd",
+        "type": "inject",
+        "z": "f1c389a7cf1d1c7f",
+        "name": "Reset SHIFT",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "00 00 * * *",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "object",
+        "payloadType": "date",
+        "x": 140,
+        "y": 680,
+        "wires": [
+            [
+                "41ccbdc67c78571d",
+                "b2643a962e5fd0cc"
+            ]
+        ]
+    },
+    {
+        "id": "0ba3ebe7d1e3d84d",
+        "type": "mysql",
+        "z": "f1c389a7cf1d1c7f",
+        "mydb": "c9bc234bf7204ec7",
+        "name": "BD",
+        "x": 690,
+        "y": 680,
+        "wires": [
+            []
         ]
     },
     {
@@ -41,5 +1468,79 @@
         "willTopic": "",
         "willQos": "0",
         "willPayload": ""
+    },
+    {
+        "id": "76138ee56118c785",
+        "type": "ui_group",
+        "name": "Gauge",
+        "tab": "de8cb4e3b0429c2a",
+        "order": 4,
+        "disp": true,
+        "width": 7,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "77c37790eb995e95",
+        "type": "ui_group",
+        "name": "Indicateur",
+        "tab": "de8cb4e3b0429c2a",
+        "order": 2,
+        "disp": true,
+        "width": 15,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "d3800220c808702f",
+        "type": "ui_group",
+        "name": "Compteur",
+        "tab": "de8cb4e3b0429c2a",
+        "order": 3,
+        "disp": true,
+        "width": 8,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "4be6bc72d7a27a35",
+        "type": "ui_group",
+        "name": "Aujourd'hui",
+        "tab": "de8cb4e3b0429c2a",
+        "order": 1,
+        "disp": true,
+        "width": 15,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "03e4285cb4d6a5b9",
+        "type": "ui_group",
+        "name": "Alerte",
+        "tab": "de8cb4e3b0429c2a",
+        "order": 5,
+        "disp": true,
+        "width": 7,
+        "collapse": true,
+        "className": ""
+    },
+    {
+        "id": "c9bc234bf7204ec7",
+        "type": "MySQLdatabase",
+        "name": "jalidos",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "jalidos",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "de8cb4e3b0429c2a",
+        "type": "ui_tab",
+        "name": "Production",
+        "icon": "av_timer",
+        "order": 2,
+        "disabled": false,
+        "hidden": false
     }
 ]
