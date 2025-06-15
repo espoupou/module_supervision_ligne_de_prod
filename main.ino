@@ -7,7 +7,7 @@ const char* ssid = "devipro";
 const char* password = "devipro";
 
 // MQTT
-const char* mqtt_server = "192.168.27.172";
+const char* mqtt_server = "192.168.126.172"; //192.168.126.172
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -35,12 +35,12 @@ int dernier_etat_qualite = 0;
 // Débouncing
 volatile int compteur = 0;
 unsigned long last_ir_time = 0;
-const unsigned long debounce_delay = 300;
+const unsigned long debounce_delay = 2000;
 
 void IRAM_ATTR detecterObjet() {
   unsigned long current_time = millis();
   if (current_time - last_ir_time > debounce_delay) {
-    compteur++;
+    compteur = 1;
     last_ir_time = current_time;
   }
 }
@@ -90,7 +90,7 @@ void setup() {
         Serial.print(".");
     }
     Serial.println("\nWiFi connecté");
-    Serial.print("IP address: "); //192.168.27.34
+    Serial.print("IP address: "); //192.168.126.34
     Serial.println(WiFi.localIP());
 
     client.setServer(mqtt_server, 1883);
@@ -108,10 +108,14 @@ void loop() {
     }
     client.loop();
 
-    client.publish(mqtt_topic_ir, String(compteur).c_str());
+    if (compteur == 1) {
+      client.publish(mqtt_topic_ir, String(compteur).c_str());
+      compteur = 0;
+    }
 
     int distance = sonar.ping_cm();
-    client.publish(mqtt_topic_ultrason, String(distance).c_str());
+    distance = (distance < 0) ? 0 : distance;
+    client.publish(mqtt_topic_ultrason, String(100 - distance * 100 / MAX_DISTANCE).c_str());
 
     etat_qualite = digitalRead(PIN_MC38);
     if (etat_qualite != dernier_etat_qualite) {
@@ -120,10 +124,13 @@ void loop() {
             client.publish(mqtt_topic_mc38, "1");
         }
     }
-
+    Serial.println("===================");
     Serial.print("Compteur IR : "); Serial.println(compteur);
     Serial.print("Distance : "); Serial.print(distance); Serial.println(" cm");
     Serial.print("État Qualité : "); Serial.println(etat_qualite);
+    Serial.println("===================");
+    Serial.println("");
 
-    delay(500);
+    delay(100);
 }
+
