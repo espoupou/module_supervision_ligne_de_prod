@@ -3,11 +3,20 @@
 #include <NewPing.h>
 
 // WiFi
-const char* ssid = "devipro";
-const char* password = "devipro";
+const char* ssid = "synux006";      // nom du wifi
+const char* password = "88888888";  // mot de passe du wifi
+
+// Capteurs
+#define PIN_IR 19         // capteur présence / InfraRouge
+#define TRIGGER_PIN 5     // ultrason trig
+#define ECHO_PIN 18       // ultrason echo
+#define PIN_MC38 23       // capteur porte
+#define MAX_DISTANCE 200  // distance niveau reservoir vide
+#define PIN_LED_GREEN 2
+#define PIN_LED_RED 2
 
 // MQTT
-const char* mqtt_server = "192.168.126.172"; //192.168.126.172
+const char* mqtt_server = "192.168.61.185"; //IP du serveur node red 192.168.126.172
 WiFiClient espClient;
 PubSubClient client(espClient);
 
@@ -15,15 +24,6 @@ const char* mqtt_topic_ir = "produit/compte";
 const char* mqtt_topic_ultrason = "produit/niveau";
 const char* mqtt_topic_mc38 = "produit/rebut";
 const char* mqtt_topic_reset = "processus/reset";
-
-// Capteurs
-#define PIN_IR 19
-#define TRIGGER_PIN 5
-#define ECHO_PIN 18
-#define PIN_MC38 23
-#define MAX_DISTANCE 200
-#define PIN_LED_GREEN 2
-#define PIN_LED_RED 2
 
 // Capteur niveau
 NewPing sonar(TRIGGER_PIN, ECHO_PIN, MAX_DISTANCE);
@@ -35,7 +35,7 @@ int dernier_etat_qualite = 0;
 // Débouncing
 volatile int compteur = 0;
 unsigned long last_ir_time = 0;
-const unsigned long debounce_delay = 2000;
+const unsigned long debounce_delay = 2000; // delai en ms
 
 void IRAM_ATTR detecterObjet() {
   unsigned long current_time = millis();
@@ -133,4 +133,3 @@ void loop() {
 
     delay(100);
 }
-
